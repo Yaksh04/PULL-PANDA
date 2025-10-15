@@ -1,12 +1,12 @@
 import os
 import requests
-from groq import Groq   # Groq’s OpenAI-compatible client
+from groq import Groq  # 👈 use groq client instead of openai
 
 # === Environment setup ===
 repo = os.getenv("GITHUB_REPOSITORY")
 pr_number = os.getenv("PR_NUMBER")
-token = os.getenv("GITHUB_TOKEN") or os.getenv("BOT_TOKEN")  # fallback to PAT if needed
-groq_key = os.getenv("GROQ_API_KEY")
+token = os.getenv("GITHUB_TOKEN")
+groq_key = os.getenv("GROQ_API_KEY")  # 👈 change variable name
 
 if not all([repo, pr_number, token, groq_key]):
     raise SystemExit("❌ Missing required environment variables")
@@ -17,7 +17,7 @@ headers = {
     "User-Agent": "ai-pr-bot"
 }
 
-# Groq client
+# === Groq client ===
 client = Groq(api_key=groq_key)
 
 # === GitHub API helpers ===
@@ -36,10 +36,6 @@ def post_comment(body: str):
     """Post a comment on the PR"""
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     r = requests.post(url, headers=headers, json={"body": body})
-    if r.status_code == 403:
-        print("⚠️ Forbidden: Token may not have permission to comment on this PR (forked repo?).")
-        print(r.json())
-        return
     r.raise_for_status()
     print("✅ Comment posted successfully")
 
@@ -75,7 +71,7 @@ Write a structured review:
 Respond in markdown format.
 """
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",   # ✅ supported Groq model
+        model="llama-3.1-8b-instant",  # 👈 Groq’s most powerful free model
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
         max_tokens=500
@@ -97,4 +93,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-give me disctrition for github sort mean what is going on in project

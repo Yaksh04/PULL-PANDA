@@ -3,13 +3,16 @@
 
 import re
 import json
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.output_parser import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from core import llm
 from datetime import datetime
+# --- NEW: Need safe_truncate for evaluator prompt ---
+from utils import safe_truncate 
+# ----------------------------------------------------
 
 # -------------------------
-# Heuristic helpers
+# Heuristic helpers (UNCHANGED)
 # -------------------------
 def count_bullets(text: str) -> int:
     return len(re.findall(r"^\s*[-•*]\s+", text, flags=re.MULTILINE))
@@ -30,12 +33,15 @@ def heuristic_metrics(review: str):
     return metrics
 
 # -------------------------
-# Meta-evaluator prompt (careful to escape JSON braces)
+# Meta-evaluator prompt (MODIFIED)
+# Added {static} (bug fix) and {context} (RAG)
 # -------------------------
 evaluator_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an objective senior software engineer who judges review quality."),
     ("human",
-     "You will evaluate a Pull Request review. Produce ONLY a JSON object (no extra commentary).\n\n"
+     "You will evaluate a Pull Request review based on the diff, static analysis, and retrieved context provided.\n"
+     "Judge if the review properly used the static analysis and context.\n"
+     "Produce ONLY a JSON object (no extra commentary).\n\n"
      "Fields (1-10 integers): clarity, usefulness, depth, actionability, positivity.\n"
      "Also include a short `explain` string (1-2 sentences).\n\n"
      "Output JSON (exact format):\n"
@@ -48,21 +54,35 @@ evaluator_prompt = ChatPromptTemplate.from_messages([
      '  "explain": "short explanation"\n'
      "}}\n\n"
      "PR Diff (truncated):\n{diff}\n\n"
+     "Static Analysis Results:\n{static}\n\n"
+     "Retrieved Context:\n{context}\n\n"
      "Review to evaluate:\n{review}\n")
 ])
 
-def meta_evaluate(diff: str, review: str):
+# --- MODIFIED: Signature updated to accept static_output and context ---
+def meta_evaluate(diff: str, review: str, static_output: str, context: str):
     """
     Calls the evaluator LLM chain and returns parsed JSON (dict) and raw output.
     Returns (parsed_dict, raw_text). parsed_dict may contain 'error' key on problems.
     """
     chain = evaluator_prompt | llm | StrOutputParser()
     try:
-        raw = chain.invoke({"diff": diff[:4000], "review": review})
+        # Truncate inputs for the evaluator
+        truncated_diff = safe_truncate(diff, 4000)
+        truncated_review = safe_truncate(review, 4000)
+        truncated_static = safe_truncate(static_output, 2000)
+        truncated_context = safe_truncate(context, 2000)
+
+        raw = chain.invoke({
+            "diff": truncated_diff, 
+            "review": truncated_review,
+            "static": truncated_static,
+            "context": truncated_context
+        })
     except Exception as e:
         return {"error": f"evaluator invoke failed: {e}"}, None
 
-    # parse JSON robustly (the StrOutputParser may give exact JSON, but be defensive)
+    # parse JSON robustly (UNCHANGED)
     parsed = None
     try:
         parsed = json.loads(raw.strip())
@@ -78,7 +98,7 @@ def meta_evaluate(diff: str, review: str):
     return parsed, raw
 
 # -------------------------
-# Score combining functions
+# Score combining functions (UNCHANGED)
 # -------------------------
 def meta_to_score(meta_parsed: dict):
     # Weighted average of meta fields (1-10) -> 0-10

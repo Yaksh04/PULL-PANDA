@@ -1,4 +1,4 @@
-# config.py (MODIFIED)
+# config.py
 
 import os
 from dotenv import load_dotenv
@@ -16,7 +16,18 @@ except (TypeError, ValueError):
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+# --- NEW: Load Pinecone variables ---
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+# ------------------------------------
+
 if not all([OWNER, REPO, GITHUB_TOKEN, GROQ_API_KEY]):
     raise SystemExit("❌ Missing required .env variables (excluding PR_NUMBER)")
-if PR_NUMBER <= 0: # This check can be performed here now
+
+# --- NEW: Check for Pinecone variables ---
+if not all([PINECONE_API_KEY, PINECONE_INDEX_NAME]):
+    raise SystemExit("❌ Missing PINECONE_API_KEY or PINECONE_INDEX_NAME in .env")
+# -----------------------------------------
+
+if PR_NUMBER <= 0: 
     print("⚠️ WARNING: PR_NUMBER is missing or invalid in .env.")

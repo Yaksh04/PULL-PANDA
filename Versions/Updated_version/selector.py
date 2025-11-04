@@ -10,48 +10,66 @@ from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from core import run_prompt, fetch_pr_diff, save_text_to_file
-from evaluation import heuristic_metrics, meta_evaluate, meta_to_score, heuristics_to_score
+# --- MODIFIED: Import global score functions, not local ones ---
+from evaluation import heuristic_metrics, meta_to_score, heuristics_to_score 
 from prompts import get_prompts
 from config import OWNER, REPO, PR_NUMBER, GITHUB_TOKEN
-from langchain.prompts import ChatPromptTemplate # NEW: Needed for defining the local evaluator prompt
-from langchain.schema.output_parser import StrOutputParser # NEW: Needed for defining the local evaluator parser
-from core import llm # NEW: Needed for defining the local evaluator LLM
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from core import llm 
+# --- NEW: Need safe_truncate for evaluator prompt ---
+from utils import safe_truncate
+# ----------------------------------------------------
 
-# --- MODIFIED: Meta-evaluator prompt template now includes {static} ---
+# --- MODIFIED: Meta-evaluator prompt template now includes {static} AND {context} ---
 evaluator_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an objective senior software engineer who judges review quality."),
     ("human",
-     "You will evaluate a Pull Request review. Produce ONLY a JSON object (no extra commentary).\n\n"
+     "You will evaluate a Pull Request review based on the diff, static analysis, and retrieved context provided.\n"
+     "Judge if the review properly used the static analysis and context.\n"
+     "Produce ONLY a JSON object (no extra commentary).\n\n"
      "Fields (1-10 integers): clarity, usefulness, depth, actionability, positivity.\n"
      "Also include a short `explain` string (1-2 sentences).\n\n"
      "Output JSON (exact format):\n"
      "{{\n"
-     '  "clarity": <int 1-10>,\n'
-     '  "usefulness": <int 1-10>,\n'
-     '  "depth": <int 1-10>,\n'
-     '  "actionability": <int 1-10>,\n'
-     '  "positivity": <int 1-10>,\n'
-     '  "explain": "short explanation"\n'
+     '  "clarity": <int 1-10>,\n'
+     '  "usefulness": <int 1-10>,\n'
+     '  "depth": <int 1-10>,\n'
+     '  "actionability": <int 1-10>,\n'
+     '  "positivity": <int 1-10>,\n'
+     '  "explain": "short explanation"\n'
      "}}\n\n"
      "PR Diff (truncated):\n{diff}\n\n"
      "Static Analysis Results:\n{static}\n\n" # NEW: static analysis results
+     "Retrieved Context:\n{context}\n\n" # NEW: RAG context
      "Review to evaluate:\n{review}\n")
 ])
 # --------------------------------------------------------------------
 
 # --- MODIFIED: We need to define the meta_evaluate function locally to use the new prompt
-def meta_evaluate(diff: str, review: str, static_output: str):
+def meta_evaluate(diff: str, review: str, static_output: str, context: str):
     """
     Calls the evaluator LLM chain and returns parsed JSON (dict) and raw output.
     Returns (parsed_dict, raw_text). parsed_dict may contain 'error' key on problems.
     """
     chain = evaluator_prompt | llm | StrOutputParser()
     try:
-        raw = chain.invoke({"diff": diff[:4000], "review": review, "static": static_output[:4000]}) # Pass static output and truncate it
+        # Truncate inputs for the evaluator
+        truncated_diff = safe_truncate(diff, 4000)
+        truncated_review = safe_truncate(review, 4000)
+        truncated_static = safe_truncate(static_output, 2000)
+        truncated_context = safe_truncate(context, 2000)
+
+        raw = chain.invoke({
+            "diff": truncated_diff, 
+            "review": truncated_review,
+            "static": truncated_static,
+            "context": truncated_context
+        })
     except Exception as e:
         return {"error": f"evaluator invoke failed: {e}"}, None
 
-    # parse JSON robustly (the StrOutputParser may give exact JSON, but be defensive)
+    # parse JSON robustly (UNCHANGED)
     parsed = None
     try:
         parsed = json.loads(raw.strip())
@@ -159,17 +177,17 @@ class IterativePromptSelector:
     def generate_review(self, diff_text: str, selected_prompt: str, diff_truncate: int = 4000):
         prompt = self.prompts[selected_prompt]
         start = time.time()
-        # --- MODIFIED: run_prompt now returns review and static_output ---
-        review, static_output = run_prompt(prompt, diff_text, diff_truncate=diff_truncate)
+        # --- MODIFIED: run_prompt now returns review, static_output, and context ---
+        review, static_output, context = run_prompt(prompt, diff_text, diff_truncate=diff_truncate)
         # -----------------------------------------------------------------
         elapsed = time.time() - start
-        return review, static_output, elapsed
+        return review, static_output, elapsed, context # Return context
 
-    def evaluate_review(self, diff_text: str, review_text: str, static_output: str):
-        # --- MODIFIED: The meta_evaluate call now passes the static_output (using the locally defined function) ---
+    def evaluate_review(self, diff_text: str, review_text: str, static_output: str, context: str):
+        # --- MODIFIED: The meta_evaluate call now passes the context (using the locally defined function) ---
         heur = heuristic_metrics(review_text)
-        meta_parsed, meta_raw = meta_evaluate(diff_text, review_text, static_output=static_output)
-        # -------------------------------------------------------------------------------------------------------
+        meta_parsed, meta_raw = meta_evaluate(diff_text, review_text, static_output=static_output, context=context)
+        # --------------------------------------------------------------------------------------------------
 
         final_score, meta_score, heur_score = None, None, None
         if isinstance(meta_parsed, dict) and "error" not in meta_parsed:
@@ -184,9 +202,11 @@ class IterativePromptSelector:
     # -------------------------
     # I/O: save results & state (MODIFIED)
     # -------------------------
-    def save_results(self, pr_number: int, features: dict, prompt_name: str, review: str, score: float, heur: dict, meta_parsed: dict, static_output: str):
+    def save_results(self, pr_number: int, features: dict, prompt_name: str, review: str, score: float, heur: dict, meta_parsed: dict, static_output: str, context: str):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"iterative_results_pr{pr_number}_{timestamp}.json"
+        
+        # --- MODIFIED: Add context summary to payload ---
         payload = {
             "timestamp": timestamp,
             "pr_number": pr_number,
@@ -195,17 +215,24 @@ class IterativePromptSelector:
             "features": features,
             "heuristics": heur,
             "meta_evaluation": meta_parsed,
-            "static_output_summary": static_output[:100] + "..." if len(static_output) > 100 else static_output, # NEW: Summary
+            "static_output_summary": static_output[:100] + "..." if len(static_output) > 100 else static_output,
+            "retrieved_context_summary": context[:100] + "..." if len(context) > 100 else context, # NEW
             "training_data_size": len(self.feature_history),
             "model_trained": self.is_trained
         }
+        # ------------------------------------------------
+        
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
         # also save the review text
         review_fname = f"review_pr{pr_number}_{prompt_name.replace('/', '_').replace(' ', '_')}.md"
-        # Include static analysis output in the individual review file for full context
-        content = f"# Review (prompt={prompt_name})\n\n{review}\n\n---\n## Static Analysis Output:\n{static_output}\n"
+        # Include static analysis AND context in the individual review file
+        content = (
+            f"# Review (prompt={prompt_name})\n\n{review}\n\n"
+            f"---\n## Static Analysis Output:\n{static_output}\n\n"
+            f"---\n## Retrieved Context:\n{context}\n"
+        )
         save_text_to_file(review_fname, content)
         
     def save_state(self, filename: str = "selector_state.json"):
@@ -248,25 +275,32 @@ class IterativePromptSelector:
 # -------------------------
 # Helper runner: process a PR using selector and persist outputs (MODIFIED)
 # -------------------------
-def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, owner=OWNER, repo=REPO, token=GITHUB_TOKEN):
+# [NEW]
+def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, owner=OWNER, repo=REPO, token=GITHUB_TOKEN, post_to_github: bool = False):
     print(f"Processing PR #{pr_number}...")
     diff_text = fetch_pr_diff(owner, repo, pr_number, token)
     features = selector.extract_pr_features(diff_text)
     features_vector = selector.features_to_vector(features)
     chosen = selector.select_best_prompt(features_vector)
     print(f"Selected prompt: {chosen}")
-    # --- MODIFIED: get static_output and elapsed time ---
-    review, static_output, elapsed = selector.generate_review(diff_text, chosen)
+    
+    # --- MODIFIED: get static_output, elapsed, and context ---
+    review, static_output, elapsed, context = selector.generate_review(diff_text, chosen)
     # ----------------------------------------------------
+    
     print(f"Review generated in {elapsed:.2f}s")
-    # --- MODIFIED: pass static_output to evaluate_review ---
-    score, heur, meta_parsed = selector.evaluate_review(diff_text, review, static_output)
+    
+    # --- MODIFIED: pass context to evaluate_review ---
+    score, heur, meta_parsed = selector.evaluate_review(diff_text, review, static_output, context)
     # -------------------------------------------------------
+    
     print(f"Score: {score}/10")
     selector.update_model(features_vector, chosen, score)
-    # --- MODIFIED: pass static_output to save_results ---
-    selector.save_results(pr_number, features, chosen, review, score, heur, meta_parsed, static_output)
+    
+    # --- MODIFIED: pass static_output and context to save_results ---
+    selector.save_results(pr_number, features, chosen, review, score, heur, meta_parsed, static_output, context)
     # ----------------------------------------------------
+    
     return {
         "pr_number": pr_number,
         "chosen_prompt": chosen,

@@ -19,17 +19,21 @@ def benchmark_all_prompts(pr_number: int, post_to_github: bool = False):
         print(f"-> Running prompt: {name}")
         start = time.time()
         try:
-            # --- MODIFIED: run_prompt now returns review and static_output ---
-            review, static_output = run_prompt(prompt, diff)
-            # ---------------------------------------------------------------
+            # --- MODIFIED: run_prompt now returns review, static_output, and context ---
+            review, static_output, context = run_prompt(prompt, diff)
+            # -------------------------------------------------------------------------
         except Exception as e:
             review = f"ERROR: prompt invoke failed: {e}"
             static_output = "N/A" # Default for failed run
+            context = "N/A" # Default for failed run
         elapsed = time.time() - start
 
         heur = heuristic_metrics(review)
-        # Note: meta_evaluate is unchanged, but the LLM now has more context
-        meta_parsed, meta_raw = meta_evaluate(diff, review, static_output=static_output) 
+        
+        # --- MODIFIED: meta_evaluate now also takes context ---
+        meta_parsed, meta_raw = meta_evaluate(diff, review, static_output=static_output, context=context) 
+        # ------------------------------------------------------
+        
         final_score, meta_score, heur_score = combine_final_score(meta_parsed, heur), None, heuristics_to_score(heur)
         meta_score = None if (not isinstance(meta_parsed, dict) or "error" in meta_parsed) else meta_parsed
 
@@ -41,9 +45,10 @@ def benchmark_all_prompts(pr_number: int, post_to_github: bool = False):
             "meta_score": meta_score if meta_score else "N/A",
             "final_score": final_score,
             "meta_raw": meta_raw if meta_raw else "",
-            "static_output": static_output # NEW: Store static output for debugging
+            "static_output": static_output, # Store static output for debugging
+            "retrieved_context": context # NEW: Store context for debugging
         })
-        time.sleep(0.2)
+        time.sleep(0.2) # (UNCHANGED)
 
     # Sort results by final_score (UNCHANGED)
     results_sorted = sorted(results, key=lambda r: (r["final_score"] if isinstance(r["final_score"], (int, float)) else 0))
@@ -69,8 +74,13 @@ def benchmark_all_prompts(pr_number: int, post_to_github: bool = False):
     for r in results:
         safe_name = r["prompt"].replace("/", "_")
         fname = f"review_{safe_name}_PR{pr_number}.md"
-        # Include static analysis output in the individual review file for full context
-        content = f"# Review by prompt: {r['prompt']}\n\n{r['review']}\n\n---\n## Static Analysis Output:\n{r['static_output']}\n\n---\n## Meta Raw:\n{r['meta_raw']}"
+        # Include static analysis AND context in the individual review file
+        content = (
+            f"# Review by prompt: {r['prompt']}\n\n{r['review']}\n\n"
+            f"---\n## Static Analysis Output:\n{r['static_output']}\n\n"
+            f"---\n## Retrieved Context:\n{r['retrieved_context']}\n\n"
+            f"---\n## Meta Raw:\n{r['meta_raw']}"
+        )
         save_text_to_file(fname, content)
 
     print(f"\nSaved summary to {md_file} and CSV to {csv_file}")

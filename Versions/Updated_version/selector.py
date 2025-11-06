@@ -1,7 +1,5 @@
-# selector.py
-# IterativePromptSelector: extract PR features, select prompts, learn from feedback
-# Also contains runner helpers that save results.
-
+from core import run_prompt, fetch_pr_diff, save_text_to_file, post_review_comment
+from evaluation import heuristic_metrics, meta_to_score, heuristics_to_score
 import json
 import re
 import time
@@ -276,7 +274,7 @@ class IterativePromptSelector:
 # Helper runner: process a PR using selector and persist outputs (MODIFIED)
 # -------------------------
 # [NEW]
-def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, owner=OWNER, repo=REPO, token=GITHUB_TOKEN, post_to_github: bool = False):
+def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, owner=OWNER, repo=REPO, token=GITHUB_TOKEN, post_to_github: bool = True):
     print(f"Processing PR #{pr_number}...")
     diff_text = fetch_pr_diff(owner, repo, pr_number, token)
     features = selector.extract_pr_features(diff_text)
@@ -300,7 +298,20 @@ def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, 
     # --- MODIFIED: pass static_output and context to save_results ---
     selector.save_results(pr_number, features, chosen, review, score, heur, meta_parsed, static_output, context)
     # ----------------------------------------------------
-    
+     if post_to_github:
+        print(f"Posting review to GitHub PR #{pr_number}...")
+        try:
+           
+            github_body = (
+                f" **AI-Powered Review** (Prompt: `{chosen}` | Score: **{score}/10**)\n\n"
+                f"---\n\n"
+                f"{review}"
+            )
+
+            post_review_comment(owner, repo, pr_number, github_body, token)
+            print("Successfully posted comment to GitHub.")
+        except Exception as e:
+            print(f"FAILED to post comment to GitHub: {e}")
     return {
         "pr_number": pr_number,
         "chosen_prompt": chosen,
@@ -308,3 +319,4 @@ def process_pr_with_selector(selector: IterativePromptSelector, pr_number: int, 
         "score": score,
         "features": features
     }
+

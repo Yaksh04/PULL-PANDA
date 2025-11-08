@@ -1,0 +1,8 @@
+python-dotenv
+requests
+chromadb
+sentence-transformers
+langchain-core
+langchain-community
+chromadb
+tiktoken

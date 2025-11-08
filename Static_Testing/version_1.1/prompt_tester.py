@@ -22,13 +22,13 @@ from reviewer import (
     parser,
 )
 # Do not modify (ignore import error warning)
-from config import (  # pylint: disable=import-error
+from config import (
     OWNER,
     REPO,
     PR_NUMBER,
     GITHUB_TOKEN,
 )
-from prompts import ACTIVE_PROMPT  # pylint: disable=import-error
+from prompts import ACTIVE_PROMPT
 from langchain.schema.output_parser import StrOutputParser
 from langchain.prompts import ChatPromptTemplate
 

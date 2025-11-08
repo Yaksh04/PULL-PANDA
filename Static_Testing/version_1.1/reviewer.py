@@ -12,7 +12,6 @@ Note: posting can fail due to permissions; prompt_tester gracefully handles this
 import requests
 from langchain.schema.output_parser import StrOutputParser
 from langchain_groq import ChatGroq
-# pylint: disable=import-error
 from config import GITHUB_TOKEN, OWNER, REPO, PR_NUMBER, GROQ_API_KEY
 
 # ------------------------------

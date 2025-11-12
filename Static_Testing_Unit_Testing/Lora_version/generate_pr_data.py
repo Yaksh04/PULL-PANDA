@@ -108,7 +108,6 @@ def generate_pr_and_review(n=20, output_file="train.jsonl"):
     with open(output_file, "w", encoding="utf-8") as f:
         for ex in data:
             f.write(json.dumps(ex) + "\n")
-
     print(
         f"✅ Generated {len(data)} samples with code diffs → {output_file}"
     )

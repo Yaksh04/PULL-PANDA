@@ -1,0 +1,197 @@
+// import express, { type Request, Response, NextFunction } from "express";
+// import dotenv from "dotenv";
+// dotenv.config();
+// import authRouter from "./auth";
+// import { registerRoutes } from "./routes";
+// import { setupVite, serveStatic, log } from "./vite";
+
+// const app = express();
+// app.use("/api/auth", authRouter);
+
+// declare module 'http' {
+//   interface IncomingMessage {
+//     rawBody: unknown
+//   }
+// }
+// app.use(express.json({
+//   verify: (req: Request, _res: Response, buf: Buffer) => {
+//     (req as any).rawBody = buf;
+//   }
+// }));
+// app.use(express.urlencoded({ extended: false }));
+
+// app.use((req: Request, res: Response, next: NextFunction) => {
+//   const start = Date.now();
+//   const path = req.path;
+//   let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+//   const originalResJson = res.json;
+//   res.json = function (bodyJson: any) {
+//     capturedJsonResponse = bodyJson;
+//     return originalResJson.call(res, bodyJson);
+//   };
+
+//   res.on("finish", () => {
+//     const duration = Date.now() - start;
+//     if (path.startsWith("/api")) {
+//       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+//       if (capturedJsonResponse) {
+//         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+//       }
+
+//       if (logLine.length > 80) {
+//         logLine = logLine.slice(0, 79) + "…";
+//       }
+
+//       log(logLine);
+//     }
+//   });
+
+//   next();
+// });
+
+// (async () => {
+//   const server = await registerRoutes(app);
+
+//   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+//     const status = err.status || err.statusCode || 500;
+//     const message = err.message || "Internal Server Error";
+
+//     res.status(status).json({ message });
+//     throw err;
+//   });
+
+//   // importantly only setup vite in development and after
+//   // setting up all the other routes so the catch-all route
+//   // doesn't interfere with the other routes
+//   if (app.get("env") === "development") {
+//     await setupVite(app, server);
+//   } else {
+//     serveStatic(app);
+//   }
+
+//   // ALWAYS serve the app on the port specified in the environment variable PORT
+//   // Other ports are firewalled. Default to 5000 if not specified.
+//   // this serves both the API and the client.
+//   // It is the only port that is not firewalled.
+//   const port = parseInt(process.env.PORT || '5000', 10);
+//   server.listen({
+//     port,
+//     host: "0.0.0.0",
+//     reusePort: true,
+//   }, () => {
+//     log(`serving on port ${port}`);
+//   });
+// })();
+
+
+/// SWE_project_website/server/index.ts
+import express, { type Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
+dotenv.config();
+
+import cors from "cors";
+import session from "express-session";
+
+import authRouter from "./auth";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+
+const app = express();
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
+console.log("SERVER LOADED ENV:", {
+  id: process.env.GITHUB_CLIENT_ID,
+  redirect: process.env.GITHUB_REDIRECT_URI
+});
+
+// ----------------------------------------------------------
+// 1. CORS (must be BEFORE session)
+app.use(
+  cors({
+    origin: FRONTEND_URL,
+    credentials: true
+  })
+);
+
+// ----------------------------------------------------------
+// 2. SESSION (must be BEFORE routes)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "supersecret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false,      // localhost → must be false
+      sameSite: "lax",    // fixes cookie rejection
+      path: "/"
+    }
+  })
+);
+
+// ----------------------------------------------------------
+// 3. Body parsers
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// ----------------------------------------------------------
+// 4. Auth routes
+app.use("/api/auth", authRouter);
+
+// ----------------------------------------------------------
+// Logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  const path = req.path;
+
+  let capturedJson: any = undefined;
+  const oldJson = res.json;
+
+  res.json = function (body: any) {
+    capturedJson = body;
+    return oldJson.call(this, body);
+  };
+
+  res.on("finish", () => {
+    if (path.startsWith("/api")) {
+      const duration = Date.now() - start;
+      let msg = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJson) msg += ` :: ${JSON.stringify(capturedJson)}`;
+      if (msg.length > 80) msg = msg.slice(0, 79) + "…";
+      log(msg);
+    }
+  });
+
+  next();
+});
+
+(async () => {
+  // --------------------------------------------------------
+  // Register backend API routes (returns Express app)
+  await registerRoutes(app);
+
+  // --------------------------------------------------------
+  // Error handler
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+  });
+
+  // --------------------------------------------------------
+  // Development = Vite SSR middleware
+  if (app.get("env") === "development") {
+    await setupVite(app, null as any);
+  } else {
+    serveStatic(app);
+  }
+
+  // --------------------------------------------------------
+  const port = parseInt(process.env.PORT || "5000", 10);
+
+  app.listen(port, "0.0.0.0", () => {
+    log(`🚀 Server running on port ${port}`);
+  });
+})();

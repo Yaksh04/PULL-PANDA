@@ -10,9 +10,9 @@
 
   "build": "npm run build:client && npm run build:server",
 
-  "build:client": "vite build",
+  "build:client": "vite build && rm -rf client-dist && mv dist client-dist",
 
-  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node18 --external:./client/** --external:vite --outfile=dist/server/index.js",
+  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/server/index.js",
 
   "start": "node dist/server/index.js"
 },

@@ -12,7 +12,7 @@
 
   "build:client": "vite build && rm -rf client-dist && mv dist client-dist",
 
-  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/server/index.js",
+  "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node18 --external:express --external:express-session --external:cors --external:dotenv --external:path --external:@octokit/* --external:* --outfile=dist/server/index.js",
 
   "start": "node dist/server/index.js"
 },

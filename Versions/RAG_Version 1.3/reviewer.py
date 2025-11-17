@@ -65,3 +65,40 @@ def save_text_to_file(path: str, text: str):
             f.write(text)
     except Exception as e:
         print(f"❌ Error saving file {path}: {e}")
+
+def fetch_pr_metadata(owner: str, repo: str, pr_number: int, token: str):
+    """
+    Fetch PR metadata to detect 404 or permission issues.
+    Returns:
+        dict for valid PR
+        None if PR does not exist or is inaccessible
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+
+        # Handle missing PR
+        if response.status_code == 404:
+            print(f"⚠️ PR #{pr_number} not found (404).")
+            return None
+
+        if response.status_code == 403:
+            print(f"⚠️ Access denied for PR #{pr_number} (403).")
+            return None
+
+        # Other non-success codes
+        if response.status_code >= 400:
+            print(f"⚠️ GitHub error: {response.status_code} -> {response.text}")
+            return None
+
+        return response.json()
+
+    except Exception as e:
+        print(f"⚠️ Error fetching PR metadata: {e}")
+        return None

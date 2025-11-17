@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 from sklearn.linear_model import SGDRegressor
 from sklearn.preprocessing import StandardScaler
-from reviewer import fetch_pr_diff, save_text_to_file, llm, parser, post_review_comment
+from reviewer import fetch_pr_diff, save_text_to_file, llm, parser, post_review_comment, fetch_pr_metadata
 from config import OWNER, REPO, GITHUB_TOKEN, PR_NUMBER
 from prompts import get_prompts
 from accuracy_checker import heuristic_metrics, meta_evaluate
@@ -312,6 +312,20 @@ class IterativePromptSelector:
     def process_pr(self, pr_number, owner=OWNER, repo=REPO, token=GITHUB_TOKEN, post_to_github: bool = True):
         """Process a single PR using iterative prompt selection"""
         print(f"Processing PR #{pr_number}...")
+        
+        pr_meta = fetch_pr_metadata(owner, repo, pr_number, token)
+
+        # If metadata not found → TRUE 404 → EXIT IMMEDIATELY
+        if pr_meta is None or ("message" in pr_meta and pr_meta["message"] == "Not Found"):
+            print(f"⚠️ Skipping PR #{pr_number}: PR not found or inaccessible.\n")
+            return {
+                "pr_number": pr_number,
+                "selected_prompt": None,
+                "review": None,
+                "score": None,
+                "features": None,
+                "generation_time": 0
+            }
         
         diff_text = fetch_pr_diff(owner, repo, pr_number, token)
         

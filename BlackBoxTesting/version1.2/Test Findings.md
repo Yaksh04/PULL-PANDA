@@ -12,12 +12,11 @@ This test report validates the stability and functional output of the AI Review 
 
 The system is **STABLE**, processing all 25 PRs without crashing. The AI model is **FUNCTIONAL**, consistently identifying specific, valid code bugs in the generated reviews.
 
-| Feature                              | Status   | Notes                                                                                   |
-| :----------------------------------- | :------- | :-------------------------------------------------------------------------------------- |
-| **1. System Stability (Load Test)**  | **PASS** | Manually processed 25/25 PRs by updating the `pr_list` in `main.py`.                    |
-| **2. Functional Output (AI Review)** | **PASS** | Generated 25+ review files. AI correctly identified code-level bugs.                    |
-| **3. AI Learning (Persistence)**     | **PASS** | `selector_state.json` was successfully updated with 25 new data points.                 |
-| **4. Environment / Dependencies**    | **WARN** | Project dependencies are out of date. Required manual fixes for `langchain_core` paths. |
+| Feature                              | Status   | Notes                                                                   |
+| :----------------------------------- | :------- | :---------------------------------------------------------------------- |
+| **1. System Stability (Load Test)**  | **PASS** | Manually processed 25/25 PRs by updating the `pr_list` in `main.py`.    |
+| **2. Functional Output (AI Review)** | **PASS** | Generated 25+ review files. AI correctly identified code-level bugs.    |
+| **3. AI Learning (Persistence)**     | **PASS** | `selector_state.json` was successfully updated with 25 new data points. |
 
 ---
 
@@ -47,6 +46,6 @@ The system is **STABLE**, processing all 25 PRs without crashing. The AI model i
 ### Bugs & Issues Found
 
 - **Issue 1: Dependency Errors (High Severity)**
-  - **Description:** The project failed to run on a clean install due to outdated `langchain` imports.
+  - **Description:** The project failed to run on a clean install due to outdated `langchain` imports. This error was also discovered during unit testing.
   - **Error:** `ModuleNotFoundError: No module named 'langchain.prompts'`
-  - **Fix:** Manually updated import paths in `prompts_v2.py` and `reviewer.py` to use `langchain_core` (e.g., `from langchain_core.prompts import ChatPromptTemplate`).
+    **Comments:** No other major errors found as this is the basic version, it does what its supposed to do. The outdated library flaw found is consisten with the findings of unti testing as well.

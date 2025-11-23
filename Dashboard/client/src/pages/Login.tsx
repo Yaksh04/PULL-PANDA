@@ -23,7 +23,7 @@
 import logo from "./logo.jpg";
 
 export default function Login() {
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   const handleLogin = () => {
     window.location.href = `${API_URL}/api/auth/github`;
@@ -31,7 +31,6 @@ export default function Login() {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen bg-black overflow-hidden">
-
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden opacity-20">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gray-800 rounded-full mix-blend-overlay blur-3xl animate-pulse"></div>
@@ -45,10 +44,7 @@ export default function Login() {
         ></div>
       </div>
 
-      {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
-
-        {/* Logo */}
         <div className="mb-12 transform hover:scale-105 transition-transform duration-300">
           <div className="bg-white rounded-3xl p-2 shadow-2xl shadow-gray-800">
             <img src={logo} alt="PR Review Agent Logo" className="w-24 h-24" />
@@ -62,23 +58,17 @@ export default function Login() {
           Sign in with your GitHub account to continue
         </p>
 
-        {/* Login Button */}
         <button
           className="group relative px-8 py-3 bg-white text-black rounded-lg font-medium text-base shadow-lg hover:bg-gray-200 transition-all duration-200 overflow-hidden"
           onClick={handleLogin}
         >
           <span className="relative flex items-center gap-3">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M12 2C6.477 2 2 6.477..."
-              />
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477..." />
             </svg>
             Continue with GitHub
           </span>
         </button>
-
       </div>
     </div>
   );

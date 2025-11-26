@@ -36,7 +36,9 @@ export function AppSidebar() {
             <span className="text-sm font-semibold text-sidebar-foreground">
               AI PR Review
             </span>
-            <span className="text-xs text-muted-foreground">Agent Dashboard</span>
+            <span className="text-xs text-muted-foreground">
+              Agent Dashboard
+            </span>
           </div>
         </div>
       </SidebarHeader>
@@ -52,7 +54,9 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                      data-testid={`link-${item.title
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />

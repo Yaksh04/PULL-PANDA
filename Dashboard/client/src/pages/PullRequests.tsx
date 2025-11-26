@@ -12,7 +12,7 @@ import { RefreshCw, ArrowLeft } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import type { PullRequest } from "@/lib/api";
 import { useLocation } from "wouter";
-import { apiFetch } from "@/lib/apiClient"; // ⭐ NEW
+import { apiFetch } from "@/lib/apiClient"; // NEW
 
 export default function PullRequests() {
   const params = new URLSearchParams(window.location.search);
@@ -28,8 +28,13 @@ export default function PullRequests() {
     { id: "closed", label: "Closed", active: false },
   ]);
 
-  const { data: prs, isLoading, error, isRefetching } = useQuery<PullRequest[]>({
-    queryKey: ['/api/pull-requests', repoFilter, ownerFilter],
+  const {
+    data: prs,
+    isLoading,
+    error,
+    isRefetching,
+  } = useQuery<PullRequest[]>({
+    queryKey: ["/api/pull-requests", repoFilter, ownerFilter],
     queryFn: () => {
       const path =
         repoFilter && ownerFilter
@@ -41,7 +46,9 @@ export default function PullRequests() {
   });
 
   const handleFilterToggle = (id: string) => {
-    setFilters(filters.map((f) => (f.id === id ? { ...f, active: !f.active } : f)));
+    setFilters(
+      filters.map((f) => (f.id === id ? { ...f, active: !f.active } : f))
+    );
   };
 
   const handleClearFilters = () => {
@@ -50,7 +57,7 @@ export default function PullRequests() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({
-      queryKey: ['/api/pull-requests', repoFilter, ownerFilter],
+      queryKey: ["/api/pull-requests", repoFilter, ownerFilter],
     });
   };
 
@@ -118,7 +125,11 @@ export default function PullRequests() {
                 disabled={isRefetching}
                 data-testid="button-refresh-prs"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${
+                    isRefetching ? "animate-spin" : ""
+                  }`}
+                />
                 Refresh
               </Button>
             </div>
@@ -160,10 +171,12 @@ export default function PullRequests() {
                     name: pr.user.login,
                     avatar: pr.user.avatar_url,
                   }}
-                  status={(pr.merged ? "merged" : pr.state) as
-                    | "open"
-                    | "merged"
-                    | "closed"}
+                  status={
+                    (pr.merged ? "merged" : pr.state) as
+                      | "open"
+                      | "merged"
+                      | "closed"
+                  }
                   createdAt={new Date(pr.created_at)}
                   repository={pr.repository}
                   owner={pr.owner}

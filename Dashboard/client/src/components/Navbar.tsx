@@ -12,7 +12,7 @@ export default function Navbar() {
     queryKey: ["auth"],
     queryFn: () => apiFetch("/api/auth/me"),
     retry: false,
-    enabled: location !== "/login",   // 🔥 CRITICAL FIX
+    enabled: location !== "/login",
   });
 
   const handleLogout = async () => {
@@ -30,12 +30,11 @@ export default function Navbar() {
     { label: "Analytics", path: "/analytics" },
   ];
 
-  // 🚫 No navbar on login page
+  // No navbar on login page
   if (location === "/login") return null;
 
   return (
     <nav className="w-full bg-[#0d1117] border-b border-gray-800 px-6 py-3 flex items-center justify-between">
-      
       {/* LEFT SIDE — NAV LINKS */}
       <div className="flex items-center gap-6">
         <h1

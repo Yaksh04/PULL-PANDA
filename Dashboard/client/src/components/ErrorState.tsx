@@ -8,10 +8,10 @@ interface ErrorStateProps {
   onRetry?: () => void;
 }
 
-export function ErrorState({ 
-  title = "Something went wrong", 
-  message, 
-  onRetry 
+export function ErrorState({
+  title = "Something went wrong",
+  message,
+  onRetry,
 }: ErrorStateProps) {
   return (
     <Card className="p-8 text-center">
@@ -23,12 +23,14 @@ export function ErrorState({
           <h3 className="text-lg font-semibold text-card-foreground mb-1">
             {title}
           </h3>
-          <p className="text-sm text-muted-foreground max-w-md">
-            {message}
-          </p>
+          <p className="text-sm text-muted-foreground max-w-md">{message}</p>
         </div>
         {onRetry && (
-          <Button onClick={onRetry} variant="outline" data-testid="button-retry">
+          <Button
+            onClick={onRetry}
+            variant="outline"
+            data-testid="button-retry"
+          >
             Try Again
           </Button>
         )}

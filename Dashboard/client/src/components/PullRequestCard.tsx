@@ -39,6 +39,9 @@ interface PullRequestCardProps {
     issues: number;
     warnings: number;
   };
+
+  // Optional: Allow parent to override click
+  onClick?: () => void;
 }
 
 const statusConfig = {
@@ -74,6 +77,7 @@ export function PullRequestCard(props: PullRequestCardProps) {
     aiReviewed,
     aiReview,
     staticAnalysis,
+    onClick, // Grab the prop if passed
   } = props;
 
   const [expanded, setExpanded] = useState(false);
@@ -82,26 +86,28 @@ export function PullRequestCard(props: PullRequestCardProps) {
   const statusInfo = statusConfig[status];
   const SentimentIcon = aiReview ? sentimentIcons[aiReview.sentiment] : null;
 
-  const openDetails = () => {
-    setLocation(
-      `/pr-details?owner=${owner}&repo=${repository}&number=${number}`
-    );
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      // FIX: Use the correct dynamic route format
+      setLocation(`/pr-details/${owner}/${repository}/${number}`);
+    }
   };
 
   return (
     <Card
       className="p-4 cursor-pointer hover:bg-accent transition"
-      onClick={openDetails}
+      onClick={handleCardClick}
       data-testid={`card-pr-${number}`}
     >
       <div className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-
-          {/* NEW AI REVIEW DOT */}
+          {/* AI REVIEW DOT */}
           <div className="flex flex-col items-center pt-2">
             <div
               className={`h-2 w-2 rounded-full ${
-                aiReviewed ? "bg-green-500" : "bg-yellow-500"
+                aiReviewed ? "bg-green-500" : "bg-orange-400"
               }`}
               title={aiReviewed ? "AI Reviewed" : "Pending AI Review"}
             />

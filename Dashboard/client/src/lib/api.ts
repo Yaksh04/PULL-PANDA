@@ -12,7 +12,7 @@ export interface Repository {
   language?: string;
 
   open_issues_count: number;
-  open_prs_count: number; // ✅ added
+  open_prs_count: number; // added
 
   updated_at: string;
 }
@@ -61,4 +61,15 @@ export interface PRReviews {
   reviews: any[];
   aiReviews: any[];
   allComments: any[];
+}
+export interface AIReviewResult {
+  id: number;
+  repoOwner: string;
+  repoName: string;
+  prNumber: number;
+  score: number;
+  summary: string;
+  staticAnalysis: string;
+  metadata: Record<string, any>;
+  createdAt: string;
 }

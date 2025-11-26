@@ -114,15 +114,13 @@ export default function Analytics() {
       sentimentBreakdown: [] as { name: string; value: number }[],
       topContributors: [] as { name: string; prs: number; merged: number }[],
       repoPrCounts: [] as { name: string; count: number }[],
-      bestRepo: null as
-        | {
-            name: string;
-            total: number;
-            merged: number;
-            aiCoverage: number;
-            avgMergeMs: number;
-          }
-        | null,
+      bestRepo: null as {
+        name: string;
+        total: number;
+        merged: number;
+        aiCoverage: number;
+        avgMergeMs: number;
+      } | null,
     };
 
     if (!prs) return result;
@@ -158,10 +156,7 @@ export default function Analytics() {
       commented: 0,
     };
 
-    const contributorMap: Record<
-      string,
-      { prs: number; merged: number }
-    > = {};
+    const contributorMap: Record<string, { prs: number; merged: number }> = {};
 
     const repoStatsMap: Record<
       string,
@@ -292,15 +287,13 @@ export default function Analytics() {
         stat.total > 0 ? (stat.aiReviewed / stat.total) * 100 : 0;
       const avgMergeMs =
         stat.mergeTimes.length > 0
-          ? stat.mergeTimes.reduce((a, b) => a + b, 0) /
-            stat.mergeTimes.length
+          ? stat.mergeTimes.reduce((a, b) => a + b, 0) / stat.mergeTimes.length
           : 0;
 
       if (
         !best ||
         stat.merged > best.merged ||
-        (stat.merged === best.merged &&
-          aiCoverageRepo > best.aiCoverage)
+        (stat.merged === best.merged && aiCoverageRepo > best.aiCoverage)
       ) {
         best = {
           name,
@@ -389,9 +382,7 @@ export default function Analytics() {
                 disabled={isLoading}
               >
                 <RefreshCw
-                  className={`h-4 w-4 mr-2 ${
-                    isLoading ? "animate-spin" : ""
-                  }`}
+                  className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
                 />
                 Refresh
               </Button>
@@ -451,9 +442,7 @@ export default function Analytics() {
                   value={activeRepos}
                   icon={GitBranch}
                   trend={
-                    repoFilter
-                      ? "Within selected repo"
-                      : "Across all repos"
+                    repoFilter ? "Within selected repo" : "Across all repos"
                   }
                 />
               </>
@@ -461,7 +450,6 @@ export default function Analytics() {
           </div>
 
           {/* --- CHARTS, CONTRIBUTOR TABLE, BEST REPO CARD --- */}
-          {/* ⭐ EVERYTHING BELOW IS UNCHANGED — only backend calls above needed updates */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* STATUS PIE + PR VOLUME CHART — unchanged */}
@@ -539,7 +527,7 @@ export default function Analytics() {
             </Card>
           </div>
 
-          {/* ⭐ AI TIMELINE + SENTIMENT + CONTRIBUTORS + BEST REPO — unchanged */}
+          {/* AI TIMELINE + SENTIMENT + CONTRIBUTORS + BEST REPO — unchanged */}
           {/* (Only fetching layer above needed edits) */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -676,9 +664,7 @@ export default function Analytics() {
                       className="flex items-center justify-between gap-3"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {c.name}
-                        </p>
+                        <p className="text-sm font-medium truncate">{c.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {c.prs} PRs • {c.merged} merged
                         </p>

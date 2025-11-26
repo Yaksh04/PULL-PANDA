@@ -26,7 +26,6 @@
 //   return <Component user={data} />;
 // }
 
-
 // client/src/components/ProtectedRoute.tsx
 import { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -39,7 +38,7 @@ interface Props {
 
 export default function ProtectedRoute({ children }: Props) {
   const { isLoading, error } = useQuery({
-    queryKey: ["auth-check"],                // 🔥 DIFFERENT from Navbar
+    queryKey: ["auth-check"], // 🔥 DIFFERENT from Navbar
     queryFn: () => apiFetch("/api/auth/me"), // fresh check
     retry: false,
   });

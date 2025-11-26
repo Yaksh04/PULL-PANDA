@@ -1,17 +1,17 @@
 // SWE_project_website/client/src/pages/PRDetails.tsx
 
+import ReactMarkdown from "react-markdown";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { ExternalLink, ArrowLeft, MessageSquare, Bot } from "lucide-react";
 
-import { apiFetch } from "@/lib/apiClient";  // ⭐ NEW
+import { apiFetch } from "@/lib/apiClient";
 
 interface PRComment {
   id: number;
@@ -25,33 +25,39 @@ interface PRComment {
 
 export default function PRDetails() {
   const [, setLocation] = useLocation();
+  const [match, params] = useRoute("/pr-details/:owner/:repo/:number");
 
-  // Read parameters from URL
-  const params = new URLSearchParams(window.location.search);
-  const owner = params.get("owner");
-  const repo = params.get("repo");
-  const number = params.get("number");
+  const owner = match ? params?.owner : null;
+  const repo = match ? params?.repo : null;
+  const number = match ? params?.number : null;
 
-  const [latestAIComment, setLatestAIComment] = useState<PRComment | null>(null);
+  const [latestAIComment, setLatestAIComment] = useState<PRComment | null>(
+    null
+  );
   const [humanComments, setHumanComments] = useState<PRComment[]>([]);
 
-  // ⭐ Fetch PR comments + reviews using apiFetch
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["pr-details", owner, repo, number],
+  // 1. Fetch GitHub Comments (The conversation)
+  const { data: githubData, isLoading: loadingGithub } = useQuery({
+    queryKey: ["pr-reviews", owner, repo, number],
     queryFn: () =>
-      apiFetch(`/api/pull-requests/${owner}/${repo}/${number}/reviews`),
+      owner
+        ? apiFetch(`/api/pull-requests/${owner}/${repo}/${number}/reviews`)
+        : null,
+    enabled: !!owner && !!repo && !!number,
   });
 
-  // Process comments → separate AI vs Human
+  // Process GitHub comments
   useEffect(() => {
-    if (!data) return;
+    if (!githubData) return;
 
-    const all = data.allComments || [];
+    const all = githubData.allComments || [];
 
-    // Detect AI (if comment contains "ai-powered review")
+    // Find the comment posted by the Bot
     const ai = all
-      .filter((c: PRComment) =>
-        c.body?.toLowerCase().includes("ai-powered review")
+      .filter(
+        (c: PRComment) =>
+          c.body?.toLowerCase().includes("ai-powered review") ||
+          c.user.login.includes("bot")
       )
       .sort(
         (a: PRComment, b: PRComment) =>
@@ -63,122 +69,155 @@ export default function PRDetails() {
     // Human comments
     const humans = all.filter(
       (c: PRComment) =>
-        !c.body?.toLowerCase().includes("ai-powered review")
+        !c.body?.toLowerCase().includes("ai-powered review") &&
+        !c.user.login.includes("bot")
     );
 
     setHumanComments(humans);
-  }, [data]);
+  }, [githubData]);
+
+  if (!match) return <div>Invalid PR Link</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6">
       {/* Back Button */}
-      <Button
-        variant="outline"
-        onClick={() => setLocation(`/pull-requests?repo=${repo}&owner=${owner}`)}
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" /> Back to {repo} PRs
+      <Button variant="outline" onClick={() => setLocation("/pull-requests")}>
+        <ArrowLeft className="h-4 w-4 mr-2" /> Back to List
       </Button>
 
-      <h1 className="text-3xl font-semibold text-foreground">
-        Pull Request Details
-      </h1>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            PR #{number}: {repo}
+          </h1>
+          <p className="text-muted-foreground">Owner: {owner}</p>
+        </div>
+        <Button variant="outline" asChild>
+          <a
+            href={`https://github.com/${owner}/${repo}/pull/${number}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open in GitHub
+          </a>
+        </Button>
+      </div>
 
       {/* LOADING */}
-      {isLoading && (
+      {loadingGithub && (
         <div className="space-y-4">
-          <Skeleton className="h-8" />
-          <Skeleton className="h-24" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       )}
 
-      {/* ERROR */}
-      {error && <p className="text-red-500">Failed to load PR details.</p>}
+      {/* DASHBOARD CONTENT */}
+      {githubData && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* LEFT COL: AI INSIGHTS */}
+          <div className="md:col-span-2 space-y-6">
+            {/* REMOVED SCORE CARD SECTION */}
 
-      {/* CONTENT */}
-      {data && (
-        <div className="space-y-6">
-          {/* PR SUMMARY CARD */}
-          <Card className="p-5 space-y-3">
-            <h2 className="text-xl font-semibold">
-              {data.reviews?.[0]?.pull_request?.title ||
-                `Pull Request #${number}`}
-            </h2>
+            {/* THE REVIEW TEXT */}
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
+                <Bot className="h-5 w-5 text-blue-500" />
+                AI Review Summary
+              </h2>
 
-            <div className="text-sm text-muted-foreground">
-              <p>
-                Repository:{" "}
-                <span className="font-medium">
-                  {owner}/{repo}
-                </span>
-              </p>
-              <p>
-                PR Number: <span className="font-medium">#{number}</span>
-              </p>
-            </div>
-
-            <Badge className="mt-2 capitalize">
-              {data.reviews?.[0]?.pull_request?.state || "open"}
-            </Badge>
-
-            <Button variant="outline" className="mt-3" asChild>
-              <a
-                href={`https://github.com/${owner}/${repo}/pull/${number}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View on GitHub
-              </a>
-            </Button>
-          </Card>
-
-          {/* AI REVIEW SECTION */}
-          <Card className="p-5">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              Latest AI-Powered Review
-            </h2>
-
-            {!latestAIComment ? (
-              <p className="text-muted-foreground mt-2">
-                AI has not reviewed this PR yet.
-              </p>
-            ) : (
-              <div className="mt-4">
-                <p className="whitespace-pre-wrap text-sm">
-                  {latestAIComment.body}
-                </p>
-
-                <div className="text-xs text-muted-foreground mt-2">
-                  Posted by {latestAIComment.user.login} •{" "}
-                  {new Date(latestAIComment.created_at).toLocaleString()}
+              {latestAIComment ? (
+                <div className="text-sm text-muted-foreground">
+                  <ReactMarkdown
+                    components={{
+                      hr: () => <hr className="my-3 border-border" />,
+                      strong: ({ children }) => (
+                        <span className="font-semibold text-foreground">
+                          {children}
+                        </span>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="list-disc pl-4 mb-2 space-y-1">
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal pl-4 mb-2 space-y-1">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="pl-1">{children}</li>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-2 leading-relaxed last:mb-0">
+                          {children}
+                        </p>
+                      ),
+                      h1: ({ children }) => (
+                        <h1 className="text-lg font-bold text-foreground mt-4 mb-2">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-base font-bold text-foreground mt-3 mb-2">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-sm font-semibold text-foreground mt-2 mb-1">
+                          {children}
+                        </h3>
+                      ),
+                    }}
+                  >
+                    {latestAIComment.body}
+                  </ReactMarkdown>
                 </div>
+              ) : (
+                <div className="text-muted-foreground italic">
+                  No AI review comment found on GitHub yet.
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* RIGHT COL: HUMAN CONVERSATION */}
+          <div className="space-y-6">
+            <Card className="p-5 h-full">
+              <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                <MessageSquare className="h-5 w-5" />
+                Discussion
+              </h2>
+              <div className="space-y-4">
+                {humanComments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No other comments.
+                  </p>
+                ) : (
+                  humanComments.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-3 bg-secondary/50 rounded-lg text-sm"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <img
+                          src={c.user.avatar_url}
+                          alt={c.user.login}
+                          className="w-5 h-5 rounded-full"
+                        />
+                        <span className="font-semibold">{c.user.login}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {new Date(c.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p>{c.body}</p>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
-          </Card>
-
-          {/* HUMAN COMMENTS */}
-          <Card className="p-5 space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Human Comments
-            </h2>
-
-            {humanComments.length === 0 ? (
-              <p className="text-muted-foreground">No human comments yet.</p>
-            ) : (
-              humanComments.map((c) => (
-                <div key={c.id} className="p-3 bg-muted rounded-md">
-                  <p className="text-sm whitespace-pre-wrap">{c.body}</p>
-
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {c.user.login} —{" "}
-                    {new Date(c.created_at).toLocaleString()}
-                  </div>
-                </div>
-              ))
-            )}
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
     </div>

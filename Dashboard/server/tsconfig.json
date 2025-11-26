@@ -9,7 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "strict": false,
     "skipLibCheck": true,
-    
+
     // REQUIRED FOR ESM PROJECTS
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true

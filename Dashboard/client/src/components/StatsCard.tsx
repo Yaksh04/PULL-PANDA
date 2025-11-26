@@ -10,7 +10,10 @@ interface StatsCardProps {
 
 export function StatsCard({ title, value, icon: Icon, trend }: StatsCardProps) {
   return (
-    <Card className="p-6" data-testid={`card-stat-${title.toLowerCase().replace(/\s+/g, "-")}`}>
+    <Card
+      className="p-6"
+      data-testid={`card-stat-${title.toLowerCase().replace(/\s+/g, "-")}`}
+    >
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-sm text-muted-foreground">{title}</p>

@@ -14,8 +14,12 @@ interface FilterBarProps {
   onClearAll: () => void;
 }
 
-export function FilterBar({ filters, onFilterToggle, onClearAll }: FilterBarProps) {
-  const activeCount = filters.filter(f => f.active).length;
+export function FilterBar({
+  filters,
+  onFilterToggle,
+  onClearAll,
+}: FilterBarProps) {
+  const activeCount = filters.filter((f) => f.active).length;
 
   return (
     <div className="flex items-center gap-2 flex-wrap">

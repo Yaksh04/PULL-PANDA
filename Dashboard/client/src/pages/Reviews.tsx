@@ -8,7 +8,7 @@ import { CheckCircle2, AlertCircle, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient } from "@/lib/queryClient";
 import type { PullRequest } from "@/lib/api";
-import { apiFetch } from "@/lib/apiClient"; // ⭐ NEW
+import { apiFetch } from "@/lib/apiClient"; //
 
 const sentimentConfig = {
   approved: {
@@ -32,8 +32,12 @@ const sentimentConfig = {
 };
 
 export default function Reviews() {
-  // ⭐ Updated to use apiFetch
-  const { data: prs, isLoading, error } = useQuery<PullRequest[]>({
+  // Updated to use apiFetch
+  const {
+    data: prs,
+    isLoading,
+    error,
+  } = useQuery<PullRequest[]>({
     queryKey: ["/api/pull-requests"],
     queryFn: () => apiFetch("/api/pull-requests"),
   });
@@ -49,7 +53,9 @@ export default function Reviews() {
       <div className="flex-1 overflow-auto">
         <div className="max-w-5xl mx-auto p-6 w-full space-y-6">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">AI Reviews</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              AI Reviews
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Recent pull request activity and reviews
             </p>
@@ -76,7 +82,8 @@ export default function Reviews() {
                   ? "commented"
                   : "changes_requested";
 
-                const config = sentimentConfig[sentiment as keyof typeof sentimentConfig];
+                const config =
+                  sentimentConfig[sentiment as keyof typeof sentimentConfig];
                 const SentimentIcon = config.icon;
 
                 return (

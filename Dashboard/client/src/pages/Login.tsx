@@ -41,7 +41,7 @@ export default function Login() {
         >
           <span className="relative flex items-center gap-3">
             <svg
-              className="w-6 h-6"
+              className="w-7 h-7"
               fill="currentColor"
               viewBox="0 0 24 24"
               aria-hidden="true"
